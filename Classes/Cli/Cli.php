@@ -10,7 +10,7 @@ namespace ApiGenerator\Cli;
  * @author sami
  *
  */
-class CLI {
+class Cli {
 
 	# first define colors to use
 	private $_colors = array(

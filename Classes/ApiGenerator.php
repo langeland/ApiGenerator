@@ -3,7 +3,7 @@
 
 require __DIR__ . '/Bootstrap.php';
 
-class ApiGenerator extends \ApiGenerator\CLI\CLI {
+class ApiGenerator extends \ApiGenerator\Cli\Cli {
 
 	private $baseTask = NULL;
 
