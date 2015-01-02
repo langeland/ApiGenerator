@@ -1,0 +1,26 @@
+{
+	"name": "langeland/api-generator",
+	"description": "Generate API for the TYPO3 projects",
+	"license": "LGPL-3.0+",
+	"config": {
+		"vendor-dir": "Libraries",
+		"bin-dir": "bin"
+	},
+	"bin": [
+		"bin/api-generator"
+	],
+	"autoload": {
+		"psr-4": {
+			"ApiGenerator\\": "Classes/"
+		}
+	},
+	"require": {
+		"apigen/apigen": "dev-master"
+	},
+	"require-dev": {
+	},
+	"suggest": {
+	},
+	"scripts": {
+	}
+}

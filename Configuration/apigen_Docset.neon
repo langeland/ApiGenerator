@@ -1,0 +1,39 @@
+# directories and files matching this file mask will not be parsed
+exclude:
+    - misc/*
+    - t3lib/class.t3lib_superadmin.php
+    - typo3/sysext/core/Migrations/Code/LegacyClassesForIde.php
+    - typo3/sysext/cms/tslib/media/scripts/
+
+# character set of source files; if you use only one across your files, we recommend you name it
+charset: [UTF-8]
+
+# choose ApiGen template theme
+templateTheme: bootstrap # or: bootstrap
+
+# the way elements are grouped in menu
+groups: auto # also: namespace, packages, none; auto will detect namespace first, than packages
+
+# access levels of included method and properties
+accessLevels: [public, protected] # also [private]
+
+# include elements marked as @internal/{@internal}
+internal: false
+
+# generate documentation for PHP internal classes
+php: true
+
+# generate highlighted source code for elements
+sourceCode: true
+
+# generate tree view of classes, interfaces, traits and exceptions
+tree: false
+
+# generate documentation for deprecated elements
+deprecated: false
+
+# generate list of tasks with @todo annotation
+todo: false
+
+# add link to ZIP archive of documentation
+download: false
