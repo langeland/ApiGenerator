@@ -11,6 +11,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 
 	function __construct($appname = null, $author = null, $copyright = null) {
 		$this->settings = parse_ini_file('../Configuration/api-generator.ini', true);
+		$this->settings['locations']['base'] = __DIR__ . '/../';
 		parent::__construct('Kiskstart new TYPO3 FLOW / NEOS project', 'Jon Klixbüll Langeland', '(c) 2014 MOC A/S.');
 	}
 
@@ -75,6 +76,8 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 		if ($opt == 'help') {
 			return 'Displays the current configuration';
 		}
+
+
 		print_r($this->settings);
 
 		exit();
