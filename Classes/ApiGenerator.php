@@ -7,11 +7,13 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 
 	private $baseTask = NULL;
 
-	private $buildTarget = 'master';
+	private $buildTargets = array(
+		'master'
+	);
 
 	function __construct($appname = null, $author = null, $copyright = null) {
 		$this->settings = parse_ini_file('../Configuration/api-generator.ini', true);
-		$this->settings['locations']['base'] = __DIR__ . '/../';
+		$this->settings['locations']['base'] = realpath(__DIR__ . '/../');
 		parent::__construct('Kiskstart new TYPO3 FLOW / NEOS project', 'Jon Klixbüll Langeland', '(c) 2014 MOC A/S.');
 	}
 
@@ -43,7 +45,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			$this->task_prepareSource('git://git.typo3.org/Flow/Distributions/Base.git', 'TYPO3.FLOW');
 			$this->task_prepareSource('git://git.typo3.org/Neos/Distributions/Base.git', 'TYPO3.NEOS');
 
-			#$this->task_compile('TYPO3.CMS');
+			$this->task_compile('TYPO3.CMS');
 			$this->task_compile('TYPO3.FLOW');
 			$this->task_compile('TYPO3.NEOS');
 
@@ -77,10 +79,20 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			return 'Displays the current configuration';
 		}
 
-
 		print_r($this->settings);
-
 		exit();
+	}
+
+	/**
+	 * Argument is like flag, but just a string.
+	 * ./example.php config
+	 */
+	public function option_targets($opt = null) {
+		if ($opt == 'help') {
+			return 'Sets the build targets. [ stable | latest | dev | master ]';
+		}
+		$this->buildTargets = explode(',', str_replace(' ', '', $opt));
+		$this->outputLine('Setting build target(s) to: %s', array(implode(' ', $this->buildTargets)));
 	}
 
 	/*******************************************************************************************************************
@@ -88,7 +100,9 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 	 ******************************************************************************************************************/
 
 	private function task_createDirectories() {
-		$this->outputLine('Creating directory structure at: %s', array($this->settings['locations']['base']));
+		$this->outputLine('/*******************************************************************************************************************');
+		$this->outputLine(' * Creating directory structure at: %s', array($this->settings['locations']['base']));
+		$this->outputLine(' ******************************************************************************************************************/');
 
 		$storageDir = $this->settings['locations']['base'] . $this->settings['locations']['storage'];
 		$this->outputLine('  Creating directory: %s', array($storageDir));
@@ -152,7 +166,9 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 
 		$basename = substr(basename($repository), 0, -4);
 		$repositoryName = (is_null($alias)) ? $basename : $alias;
-		$this->outputLine('Prepearin source %s', array($repositoryName));
+		$this->outputLine('/*******************************************************************************************************************');
+		$this->outputLine(' * Prepearin source %s', array($repositoryName));
+		$this->outputLine(' ******************************************************************************************************************/');
 
 		if (!is_dir($this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName)) {
 			$this->outputLine('Local repository does not exists... Clonong..', array());
@@ -187,7 +203,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			);
 		}
 
-		if(is_file($this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName . '/composer.json')){
+		if (is_file($this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName . '/composer.json')) {
 			$this->helper_systemCall(
 				vsprintf(
 					'composer install',
@@ -210,6 +226,9 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 	}
 
 	private function task_compileVersion($repositoryName, array $version) {
+		$this->outputLine('/*******************************************************************************************************************');
+		$this->outputLine(' * Compiling HTML version of %s (%s)', array($version['name'], $version['version']));
+		$this->outputLine(' ******************************************************************************************************************/');
 		if (in_array($version['name'], $this->settings['skip']['name'])) {
 			$this->outputLine('Skipping %s (%s)',
 				array(
@@ -219,13 +238,9 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			return;
 		}
 
-		$destinationApi = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Api/' . $repositoryName . '/' . $this->buildTarget . '/' . $version['name'] . '/';
+		$destinationApi = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Api/' . $repositoryName . '/' . $version['target'] . '/' . $version['name'] . '/';
 
 		if (!is_file($destinationApi . 'commit-' . $version['commit'])) {
-			$this->outputLine('/*******************************************************************************************************************');
-			$this->outputLine(' * Compiling HTML version of %s (%s)', array($version['name'], $version['version']));
-			$this->outputLine(' ******************************************************************************************************************/');
-
 			$this->helper_systemCall(
 				vsprintf(
 					'git checkout --quiet %s',
@@ -278,7 +293,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 				));
 		}
 
-		$destinationDocset = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Docset/' . $repositoryName . '/' . $this->buildTarget . '/' . $version['name'] . '.docset/';
+		$destinationDocset = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Docset/' . $repositoryName . '/' . $version['target'] . '/' . $version['name'] . '.docset/';
 		if (!is_file($destinationDocset . 'Contents/Resources/Documents/commit-' . $version['commit'])) {
 			$this->outputLine('/*******************************************************************************************************************');
 			$this->outputLine(' * Compiling DOCSET version of %s (%s)', array($version['name'], $version['version']));
@@ -293,63 +308,63 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 				),
 				$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
 			);
-/*
-			try {
-				# 1. Create the Docset Folder
-				$this->outputLine('# 1. Create the Docset Folder');
-				$this->helper_systemCall(
-					vsprintf(
-						'mkdir -p %s',
-						array(
-							$destinationDocset . 'Contents/Resources/Documents/'
-						)
-					)
-				);
+			/*
+						try {
+							# 1. Create the Docset Folder
+							$this->outputLine('# 1. Create the Docset Folder');
+							$this->helper_systemCall(
+								vsprintf(
+									'mkdir -p %s',
+									array(
+										$destinationDocset . 'Contents/Resources/Documents/'
+									)
+								)
+							);
 
-				$this->outputLine('# 2. Build the HTML Documentation');
-				$this->helper_systemCall(
-					vsprintf(
-						'php apigen generate --debug -s %s -d %s --config %s --title "%s"',
-						array(
-							$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName,
-							$destinationDocset . 'Contents/Resources/Documents/',
-							$this->settings['locations']['base'] . 'Configuration/apigen_Docset.neon',
-							'TYPO3 CMS Version ' . $version['name'] . ' [' . $version['short'] . ']'
-						)
-					),
-					$this->settings['locations']['base'] . 'bin',
-					FALSE,
-					'passthru'
-				);
+							$this->outputLine('# 2. Build the HTML Documentation');
+							$this->helper_systemCall(
+								vsprintf(
+									'php apigen generate --debug -s %s -d %s --config %s --title "%s"',
+									array(
+										$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName,
+										$destinationDocset . 'Contents/Resources/Documents/',
+										$this->settings['locations']['base'] . 'Configuration/apigen_Docset.neon',
+										'TYPO3 CMS Version ' . $version['name'] . ' [' . $version['short'] . ']'
+									)
+								),
+								$this->settings['locations']['base'] . 'bin',
+								FALSE,
+								'passthru'
+							);
 
-				$this->outputLine('# 3. Create the Info.plist File');
-				$this->outputLine('# 4. Create the SQLite Index');
-				$this->outputLine('# 5. Adding an Icon');
-				$this->outputLine('# 6. Writing identification file');
-				touch($destinationDocset . 'Contents/Resources/Documents/commit-' . $version['commit']);
+							$this->outputLine('# 3. Create the Info.plist File');
+							$this->outputLine('# 4. Create the SQLite Index');
+							$this->outputLine('# 5. Adding an Icon');
+							$this->outputLine('# 6. Writing identification file');
+							touch($destinationDocset . 'Contents/Resources/Documents/commit-' . $version['commit']);
 
-				$this->outputLine('# 7. Compressing docset');
-				$this->outputLine('# 8. Create the Feed.xml File');
+							$this->outputLine('# 7. Compressing docset');
+							$this->outputLine('# 8. Create the Feed.xml File');
 
-			} catch (Exception $e) {
-				$this->outputLine('FAIELD compiling %s (%s)',
-					array(
-						$version['name'],
-						$version['version'],
-					));
+						} catch (Exception $e) {
+							$this->outputLine('FAIELD compiling %s (%s)',
+								array(
+									$version['name'],
+									$version['version'],
+								));
 
-				$this->helper_systemCall(
-					vsprintf(
-						'rm -rf %s',
-						array(
-							$destinationDocset
-						)
-					),
-					$this->settings['locations']['base'] . 'bin'
-				);
-				$this->outputLine('');
-			}
-			*/
+							$this->helper_systemCall(
+								vsprintf(
+									'rm -rf %s',
+									array(
+										$destinationDocset
+									)
+								),
+								$this->settings['locations']['base'] . 'bin'
+							);
+							$this->outputLine('');
+						}
+						*/
 		} else {
 			$this->outputLine('Build of %s (%s) exists, continueing',
 				array(
@@ -374,6 +389,9 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 	 * @throws Exception
 	 */
 	private function helper_loadVersions($repositoryName) {
+		$this->outputLine('/*******************************************************************************************************************');
+		$this->outputLine(' * Extracting versions for %s', array($repositoryName));
+		$this->outputLine(' ******************************************************************************************************************/');
 
 		$gitShowRef = $this->helper_systemCall(
 			vsprintf(
@@ -383,89 +401,93 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
 		);
 
-		$this->outputLine('Extracting tags for target: %s on %s', array($this->buildTarget, $repositoryName));
+		$this->outputLine('Extracting tags for target(s): %s on %s', array(implode(' ,', $this->buildTargets), $repositoryName));
+		$versions = array();
 
-		switch ($this->buildTarget) {
-			case 'stable':
-				$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
-				$versions = array();
-				foreach ($gitShowRef AS $tag) {
-					if (preg_match($pattern, $tag, $match)) {
-						$versions[] = array(
+		if (array_intersect($this->buildTargets, array('all', 'stable'))) {
+			$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
+			foreach ($gitShowRef AS $tag) {
+				if (preg_match($pattern, $tag, $match)) {
+					$versions[] = array(
+						'commit' => $match[1],
+						'short' => substr($match[1], 0, 7),
+						'version' => $match[2] . '.' . $match[3] . '.' . $match[4],
+						'branch' => $match[2] . '.' . $match[3],
+						'name' => $match[2] . '.' . $match[3] . '.' . $match[4],
+						'target' => 'stable'
+					);
+				} else {
+					continue;
+				}
+			}
+		}
+
+		if (array_intersect($this->buildTargets, array('all', 'latest'))) {
+			$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
+			$temp = array();
+			foreach ($gitShowRef AS $tag) {
+				if (preg_match($pattern, $tag, $match)) {
+					if ($temp === array() || $temp[$match[2]][$match[3]]['latest'] < $match[4]) {
+						$temp[$match[2]][$match[3]]['latest'] = $match[4];
+						$temp[$match[2]][$match[3]][$match[4]] = array(
 							'commit' => $match[1],
 							'short' => substr($match[1], 0, 7),
 							'version' => $match[2] . '.' . $match[3] . '.' . $match[4],
 							'branch' => $match[2] . '.' . $match[3],
-							'name' => $match[2] . '.' . $match[3] . '.' . $match[4]
+							'name' => $match[2] . '.' . $match[3] . 'latest',
+							'target' => 'latest'
 						);
-					} else {
-						continue;
 					}
+				} else {
+					continue;
 				}
-				break;
-			case 'latest':
-				$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
-				$temp = array();
-				foreach ($gitShowRef AS $tag) {
-					if (preg_match($pattern, $tag, $match)) {
-						if ($temp[$match[2]][$match[3]]['latest'] < $match[4]) {
-							$temp[$match[2]][$match[3]]['latest'] = $match[4];
-							$temp[$match[2]][$match[3]][$match[4]] = array(
-								'commit' => $match[1],
-								'short' => substr($match[1], 0, 7),
-								'version' => $match[2] . '.' . $match[3] . '.' . $match[4],
-								'branch' => $match[2] . '.' . $match[3],
-								'name' => $match[2] . '.' . $match[3] . 'latest'
-							);
-						}
-					} else {
-						continue;
-					}
-				}
+			}
 
-				$versions = array();
-				foreach ($temp AS $major) {
-					foreach ($major AS $minor) {
-						$versions[] = $minor[$minor['latest']];
-					}
+			$versions = array();
+			foreach ($temp AS $major) {
+				foreach ($major AS $minor) {
+					$versions[] = $minor[$minor['latest']];
 				}
-				break;
-			case 'dev':
-				$pattern = '/(\S*)\srefs\/remotes\/origin\/TYPO3_([0-9]*)-([0-9]*)/';
-				$versions = array();
-				foreach ($gitShowRef AS $tag) {
-					if (preg_match($pattern, $tag, $match)) {
-						$versions[] = array(
-							'commit' => $match[1],
-							'short' => substr($match[1], 0, 7),
-							'version' => $match[2] . '.' . $match[3] . '.0-dev',
-							'branch' => $match[2] . '.' . $match[3],
-							'name' => $match[2] . '.' . $match[3] . 'dev'
-						);
-					} else {
-						continue;
-					}
-				}
-				break;
-			case 'master':
-				$pattern = '/(\S*)\srefs\/remotes\/origin\/master/';
-				$versions = array();
-				foreach ($gitShowRef AS $tag) {
-					if (preg_match($pattern, $tag, $match)) {
-						$versions[] = array(
-							'commit' => $match[1],
-							'short' => substr($match[1], 0, 7),
-							'version' => 'master',
-							'name' => 'master'
-						);
-					} else {
-						continue;
-					}
-				}
-				break;
-			default:
-				throw new Exception('Unknown build parameter. [ stable | latest | dev | master ]', $e);
+			}
 		}
+
+		if (array_intersect($this->buildTargets, array('all', 'dev'))) {
+			$pattern = '/(\S*)\srefs\/remotes\/origin\/TYPO3_([0-9]*)-([0-9]*)/';
+			foreach ($gitShowRef AS $tag) {
+				if (preg_match($pattern, $tag, $match)) {
+					$versions[] = array(
+						'commit' => $match[1],
+						'short' => substr($match[1], 0, 7),
+						'version' => $match[2] . '.' . $match[3] . '.0-dev',
+						'branch' => $match[2] . '.' . $match[3],
+						'name' => $match[2] . '.' . $match[3] . 'dev',
+						'target' => 'dev'
+					);
+				} else {
+					continue;
+				}
+			}
+		}
+
+		if (array_intersect($this->buildTargets, array('all', 'master'))) {
+			$pattern = '/(\S*)\srefs\/remotes\/origin\/master/';
+			foreach ($gitShowRef AS $tag) {
+				if (preg_match($pattern, $tag, $match)) {
+					$versions[] = array(
+						'commit' => $match[1],
+						'short' => substr($match[1], 0, 7),
+						'version' => 'master',
+						'name' => 'master',
+						'target' => 'master'
+					);
+				} else {
+					continue;
+				}
+			}
+		}
+
+		$this->outputLine(' * Found %s versions for %s', array(count($versions), $repositoryName));
+		print_r($versions);
 
 		return $versions;
 	}
