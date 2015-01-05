@@ -1,0 +1,16 @@
+locations:
+  storage: Storage/
+  build: Storage/Build/
+  source: Storage/Source/
+  temporary: Storage/Temporary/
+  log: Storage/Logs
+
+source:
+  TYPO3.CMS:
+    git: git://git.typo3.org/Packages/TYPO3.CMS.git
+    buildPath: <buildType>/TYPO3.CMS/<target>/<versionName>/
+    #buildPath: <buildTarget>/TYPO3.CMS/<buildBranch>/typo3-cms-<versionName>/
+  TYPO3.NEOS:
+    git: git://git.typo3.org/Neos/Distributions/Base.git
+  TYPO3.FLOW:
+    git: git://git.typo3.org/Flow/Distributions/Base.git

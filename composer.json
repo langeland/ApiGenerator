@@ -15,7 +15,8 @@
 		}
 	},
 	"require": {
-		"apigen/apigen": "dev-master"
+		"apigen/apigen": "dev-master",
+		"symfony/yaml": "3.0.*@dev"
 	},
 	"require-dev": {
 	},

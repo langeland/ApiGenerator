@@ -12,7 +12,11 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 	);
 
 	function __construct($appname = null, $author = null, $copyright = null) {
-		$this->settings = parse_ini_file('../Configuration/api-generator.ini', true);
+		//$this->settings = parse_ini_file('../Configuration/api-generator.ini', true);
+
+		$this->settings = \Symfony\Component\Yaml\Yaml::parse(file_get_contents('../Configuration/api-generator.yaml'));
+
+		//die(print_r($this->settings));
 		$this->settings['locations']['base'] = realpath(__DIR__ . '/../');
 		parent::__construct('Kiskstart new TYPO3 FLOW / NEOS project', 'Jon Klixbüll Langeland', '(c) 2014 MOC A/S.');
 	}
@@ -42,12 +46,12 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 		try {
 			$this->task_createDirectories();
 			$this->task_prepareSource('git://git.typo3.org/Packages/TYPO3.CMS.git', 'TYPO3.CMS');
-			$this->task_prepareSource('git://git.typo3.org/Flow/Distributions/Base.git', 'TYPO3.FLOW');
-			$this->task_prepareSource('git://git.typo3.org/Neos/Distributions/Base.git', 'TYPO3.NEOS');
+			#$this->task_prepareSource('git://git.typo3.org/Flow/Distributions/Base.git', 'TYPO3.FLOW');
+			#$this->task_prepareSource('git://git.typo3.org/Neos/Distributions/Base.git', 'TYPO3.NEOS');
 
 			$this->task_compile('TYPO3.CMS');
-			$this->task_compile('TYPO3.FLOW');
-			$this->task_compile('TYPO3.NEOS');
+			#$this->task_compile('TYPO3.FLOW');
+			#$this->task_compile('TYPO3.NEOS');
 
 		} catch (Exception $e) {
 			$this->outputLine('Error: %s', array($e->getMessage()));
