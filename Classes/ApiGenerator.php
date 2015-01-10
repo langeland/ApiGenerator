@@ -7,17 +7,21 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 
 	private $baseTask = NULL;
 
-	private $buildTargets = array(
+	private $buildSources = array(
+		'all'
+	);
+
+	private $buildSubsets = array(
 		'master'
 	);
 
+	private $buildTargets = array(
+		'api', 'docset'
+	);
+
 	function __construct($appname = null, $author = null, $copyright = null) {
-		//$this->settings = parse_ini_file('../Configuration/api-generator.ini', true);
-
 		$this->settings = \Symfony\Component\Yaml\Yaml::parse(file_get_contents('../Configuration/api-generator.yaml'));
-
-		//die(print_r($this->settings));
-		$this->settings['locations']['base'] = realpath(__DIR__ . '/../');
+		$this->settings['locations']['base'] = realpath(__DIR__ . '/../') . '/';
 		parent::__construct('Kiskstart new TYPO3 FLOW / NEOS project', 'Jon Klixbüll Langeland', '(c) 2014 MOC A/S.');
 	}
 
@@ -45,13 +49,10 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 		$this->outputLine('Building source API', array());
 		try {
 			$this->task_createDirectories();
-			$this->task_prepareSource('git://git.typo3.org/Packages/TYPO3.CMS.git', 'TYPO3.CMS');
-			#$this->task_prepareSource('git://git.typo3.org/Flow/Distributions/Base.git', 'TYPO3.FLOW');
-			#$this->task_prepareSource('git://git.typo3.org/Neos/Distributions/Base.git', 'TYPO3.NEOS');
-
-			$this->task_compile('TYPO3.CMS');
-			#$this->task_compile('TYPO3.FLOW');
-			#$this->task_compile('TYPO3.NEOS');
+			foreach ($this->settings['source'] AS $sourceName => $source) {
+				$this->task_prepareSource($source['git'], $sourceName);
+				$this->task_compile($sourceName);
+			}
 
 		} catch (Exception $e) {
 			$this->outputLine('Error: %s', array($e->getMessage()));
@@ -91,12 +92,36 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 	 * Argument is like flag, but just a string.
 	 * ./example.php config
 	 */
+	public function option_sources($opt = null) {
+		if ($opt == 'help') {
+			return 'Sets the build sources. [ ' . implode(' | ', array_keys($this->settings['source'])) . ' | all ]';
+		}
+		$this->buildSubsets = explode(',', str_replace(' ', '', $opt));
+		$this->outputLine('Setting build source(s) to: %s', array(implode(' ', $this->buildSubsets)));
+	}
+
+	/**
+	 * Argument is like flag, but just a string.
+	 * ./example.php config
+	 */
 	public function option_targets($opt = null) {
 		if ($opt == 'help') {
-			return 'Sets the build targets. [ stable | latest | dev | master ]';
+			return 'Sets the build targets. [ api | docset | all ]';
 		}
-		$this->buildTargets = explode(',', str_replace(' ', '', $opt));
-		$this->outputLine('Setting build target(s) to: %s', array(implode(' ', $this->buildTargets)));
+		$this->buildSubsets = explode(',', str_replace(' ', '', $opt));
+		$this->outputLine('Setting build target(s) to: %s', array(implode(' ', $this->buildSubsets)));
+	}
+
+	/**
+	 * Argument is like flag, but just a string.
+	 * ./example.php config
+	 */
+	public function option_subsets($opt = null) {
+		if ($opt == 'help') {
+			return 'Sets the build subsets. [ stable | latest | dev | master | all ]';
+		}
+		$this->buildSubsets = explode(',', str_replace(' ', '', $opt));
+		$this->outputLine('Setting build subset(s) to: %s', array(implode(' ', $this->buildSubsets)));
 	}
 
 	/*******************************************************************************************************************
@@ -175,7 +200,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 		$this->outputLine(' ******************************************************************************************************************/');
 
 		if (!is_dir($this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName)) {
-			$this->outputLine('Local repository does not exists... Clonong..', array());
+			$this->outputLine('Local repository does not exists... Cloning..', array());
 
 			$this->helper_systemCall(
 				vsprintf(
@@ -207,15 +232,6 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			);
 		}
 
-		if (is_file($this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName . '/composer.json')) {
-			$this->helper_systemCall(
-				vsprintf(
-					'composer install',
-					array()
-				),
-				$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
-			);
-		}
 	}
 
 	private function task_compile($repositoryName) {
@@ -233,18 +249,20 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 		$this->outputLine('/*******************************************************************************************************************');
 		$this->outputLine(' * Compiling HTML version of %s (%s)', array($version['name'], $version['version']));
 		$this->outputLine(' ******************************************************************************************************************/');
-		if (in_array($version['name'], $this->settings['skip']['name'])) {
-			$this->outputLine('Skipping %s (%s)',
+
+		$buildOptions = array();
+		if (array_key_exists('buildOptions', $this->settings['source'][$repositoryName]) && is_string($this->settings['source'][$repositoryName]['buildOptions'])) {
+			$buildOptions = explode(',', str_replace(' ', '', $this->settings['source'][$repositoryName]['buildOptions']));
+		}
+
+		$destinationApi = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Api/' . $repositoryName . '/' . $version['subset'] . '/' . $version['name'] . '/';
+		if (is_file($destinationApi . 'commit-' . $version['commit'])) {
+			$this->outputLine('API Build of %s (%s) exists, continueing',
 				array(
 					$version['name'],
 					$version['version'],
 				));
-			return;
-		}
-
-		$destinationApi = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Api/' . $repositoryName . '/' . $version['target'] . '/' . $version['name'] . '/';
-
-		if (!is_file($destinationApi . 'commit-' . $version['commit'])) {
+		} else {
 			$this->helper_systemCall(
 				vsprintf(
 					'git checkout --quiet %s',
@@ -254,6 +272,18 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 				),
 				$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
 			);
+
+			if (in_array('composer', $buildOptions)) {
+				$this->helper_systemCall(
+					vsprintf(
+						'composer --no-interaction install',
+						array()
+					),
+					$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName,
+					FALSE,
+					'passthru'
+				);
+			}
 
 			try {
 				$this->helper_systemCall(
@@ -272,33 +302,20 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 				);
 				touch($destinationApi . 'commit-' . $version['commit']);
 			} catch (Exception $e) {
-				$this->outputLine('FAIELD compiling %s (%s)',
-					array(
-						$version['name'],
-						$version['version'],
-					));
-
-				$this->helper_systemCall(
-					vsprintf(
-						'rm -rf %s',
-						array(
-							$destinationApi
-						)
-					),
-					$this->settings['locations']['base'] . 'bin'
-				);
+				$this->outputLine('FAIELD compiling %s (%s)', array($version['name'], $version['version'],));
+				$this->helper_systemCall(vsprintf('rm -rf %s', array($destinationApi)), $this->settings['locations']['base'] . 'bin');
 				$this->outputLine('');
 			}
-		} else {
-			$this->outputLine('API Build of %s (%s) exists, continueing',
+		}
+
+		$destinationDocset = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Docset/' . $repositoryName . '/' . $version['subset'] . '/' . $version['name'] . '.docset/';
+		if (!is_file($destinationDocset . 'Contents/Resources/Documents/commit-' . $version['commit'])) {
+			$this->outputLine('Build of %s (%s) exists, continueing',
 				array(
 					$version['name'],
 					$version['version'],
 				));
-		}
-
-		$destinationDocset = $this->settings['locations']['base'] . $this->settings['locations']['build'] . 'Docset/' . $repositoryName . '/' . $version['target'] . '/' . $version['name'] . '.docset/';
-		if (!is_file($destinationDocset . 'Contents/Resources/Documents/commit-' . $version['commit'])) {
+		} else {
 			$this->outputLine('/*******************************************************************************************************************');
 			$this->outputLine(' * Compiling DOCSET version of %s (%s)', array($version['name'], $version['version']));
 			$this->outputLine(' ******************************************************************************************************************/');
@@ -312,69 +329,20 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 				),
 				$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
 			);
-			/*
-						try {
-							# 1. Create the Docset Folder
-							$this->outputLine('# 1. Create the Docset Folder');
-							$this->helper_systemCall(
-								vsprintf(
-									'mkdir -p %s',
-									array(
-										$destinationDocset . 'Contents/Resources/Documents/'
-									)
-								)
-							);
-
-							$this->outputLine('# 2. Build the HTML Documentation');
-							$this->helper_systemCall(
-								vsprintf(
-									'php apigen generate --debug -s %s -d %s --config %s --title "%s"',
-									array(
-										$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName,
-										$destinationDocset . 'Contents/Resources/Documents/',
-										$this->settings['locations']['base'] . 'Configuration/apigen_Docset.neon',
-										'TYPO3 CMS Version ' . $version['name'] . ' [' . $version['short'] . ']'
-									)
-								),
-								$this->settings['locations']['base'] . 'bin',
-								FALSE,
-								'passthru'
-							);
-
-							$this->outputLine('# 3. Create the Info.plist File');
-							$this->outputLine('# 4. Create the SQLite Index');
-							$this->outputLine('# 5. Adding an Icon');
-							$this->outputLine('# 6. Writing identification file');
-							touch($destinationDocset . 'Contents/Resources/Documents/commit-' . $version['commit']);
-
-							$this->outputLine('# 7. Compressing docset');
-							$this->outputLine('# 8. Create the Feed.xml File');
-
-						} catch (Exception $e) {
-							$this->outputLine('FAIELD compiling %s (%s)',
-								array(
-									$version['name'],
-									$version['version'],
-								));
-
-							$this->helper_systemCall(
-								vsprintf(
-									'rm -rf %s',
-									array(
-										$destinationDocset
-									)
-								),
-								$this->settings['locations']['base'] . 'bin'
-							);
-							$this->outputLine('');
-						}
-						*/
-		} else {
-			$this->outputLine('Build of %s (%s) exists, continueing',
-				array(
-					$version['name'],
-					$version['version'],
-				));
+			try {
+				$this->outputLine('# 1. Create the Docset Folder');
+				$this->outputLine('# 2. Build the HTML Documentation');
+				$this->outputLine('# 3. Create the Info.plist File');
+				$this->outputLine('# 4. Create the SQLite Index');
+				$this->outputLine('# 5. Adding an Icon');
+				$this->outputLine('# 6. Writing identification file');
+				$this->outputLine('# 7. Compressing docset');
+				$this->outputLine('# 8. Create the Feed.xml File');
+			} catch (Exception $e) {
+				$this->outputLine('FAIELD compiling %s (%s)', array($version['name'], $version['version']));
+				$this->helper_systemCall(vsprintf('rm -rf %s', array($destinationDocset)), $this->settings['locations']['base'] . 'bin');
+				$this->outputLine('');
+			}
 		}
 
 		$this->outputLine();
@@ -405,10 +373,10 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
 		);
 
-		$this->outputLine('Extracting tags for target(s): %s on %s', array(implode(' ,', $this->buildTargets), $repositoryName));
+		$this->outputLine('Extracting tags for subset(s): %s on %s', array(implode(' ,', $this->buildSubsets), $repositoryName));
 		$versions = array();
 
-		if (array_intersect($this->buildTargets, array('all', 'stable'))) {
+		if (array_intersect($this->buildSubsets, array('all', 'stable'))) {
 			$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
 			foreach ($gitShowRef AS $tag) {
 				if (preg_match($pattern, $tag, $match)) {
@@ -418,7 +386,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 						'version' => $match[2] . '.' . $match[3] . '.' . $match[4],
 						'branch' => $match[2] . '.' . $match[3],
 						'name' => $match[2] . '.' . $match[3] . '.' . $match[4],
-						'target' => 'stable'
+						'subset' => 'stable'
 					);
 				} else {
 					continue;
@@ -426,12 +394,12 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			}
 		}
 
-		if (array_intersect($this->buildTargets, array('all', 'latest'))) {
+		if (array_intersect($this->buildSubsets, array('all', 'latest'))) {
 			$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
 			$temp = array();
 			foreach ($gitShowRef AS $tag) {
 				if (preg_match($pattern, $tag, $match)) {
-					if ($temp === array() || $temp[$match[2]][$match[3]]['latest'] < $match[4]) {
+					if ($temp[$match[2]][$match[3]]['latest'] < $match[4]) {
 						$temp[$match[2]][$match[3]]['latest'] = $match[4];
 						$temp[$match[2]][$match[3]][$match[4]] = array(
 							'commit' => $match[1],
@@ -439,7 +407,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 							'version' => $match[2] . '.' . $match[3] . '.' . $match[4],
 							'branch' => $match[2] . '.' . $match[3],
 							'name' => $match[2] . '.' . $match[3] . 'latest',
-							'target' => 'latest'
+							'subset' => 'latest'
 						);
 					}
 				} else {
@@ -455,7 +423,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			}
 		}
 
-		if (array_intersect($this->buildTargets, array('all', 'dev'))) {
+		if (array_intersect($this->buildSubsets, array('all', 'dev'))) {
 			$pattern = '/(\S*)\srefs\/remotes\/origin\/TYPO3_([0-9]*)-([0-9]*)/';
 			foreach ($gitShowRef AS $tag) {
 				if (preg_match($pattern, $tag, $match)) {
@@ -465,7 +433,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 						'version' => $match[2] . '.' . $match[3] . '.0-dev',
 						'branch' => $match[2] . '.' . $match[3],
 						'name' => $match[2] . '.' . $match[3] . 'dev',
-						'target' => 'dev'
+						'subset' => 'dev'
 					);
 				} else {
 					continue;
@@ -473,7 +441,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			}
 		}
 
-		if (array_intersect($this->buildTargets, array('all', 'master'))) {
+		if (array_intersect($this->buildSubsets, array('all', 'master'))) {
 			$pattern = '/(\S*)\srefs\/remotes\/origin\/master/';
 			foreach ($gitShowRef AS $tag) {
 				if (preg_match($pattern, $tag, $match)) {
@@ -482,7 +450,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 						'short' => substr($match[1], 0, 7),
 						'version' => 'master',
 						'name' => 'master',
-						'target' => 'master'
+						'subset' => 'master'
 					);
 				} else {
 					continue;
@@ -490,9 +458,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			}
 		}
 
-		$this->outputLine(' * Found %s versions for %s', array(count($versions), $repositoryName));
-		print_r($versions);
-
+		$this->outputLine('Found %s versions for %s', array(count($versions), $repositoryName));
 		return $versions;
 	}
 

@@ -5,12 +5,21 @@ locations:
   temporary: Storage/Temporary/
   log: Storage/Logs
 
-source:
+sourcex:
   TYPO3.CMS:
     git: git://git.typo3.org/Packages/TYPO3.CMS.git
+    compileOptions:
     buildPath: <buildType>/TYPO3.CMS/<target>/<versionName>/
     #buildPath: <buildTarget>/TYPO3.CMS/<buildBranch>/typo3-cms-<versionName>/
-  TYPO3.NEOS:
-    git: git://git.typo3.org/Neos/Distributions/Base.git
   TYPO3.FLOW:
     git: git://git.typo3.org/Flow/Distributions/Base.git
+    buildOptions: composer
+  TYPO3.NEOS:
+    git: git://git.typo3.org/Neos/Distributions/Base.git
+    buildOptions: composer
+
+
+source:
+  TYPO3.FLOW:
+    git: git://git.typo3.org/Flow/Distributions/Base.git
+    buildOptions: composer
