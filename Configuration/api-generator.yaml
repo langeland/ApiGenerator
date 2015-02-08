@@ -23,3 +23,6 @@ source:
   TYPO3.FLOW:
     git: git://git.typo3.org/Flow/Distributions/Base.git
     buildOptions: composer
+  TYPO3.NEOS:
+    git: git://git.typo3.org/Neos/Distributions/Base.git
+    buildOptions: composer

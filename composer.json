@@ -16,7 +16,8 @@
 	},
 	"require": {
 		"apigen/apigen": "dev-master",
-		"symfony/yaml": "3.0.*@dev"
+		"symfony/yaml": "3.0.*@dev",
+		"symfony/process": "3.0.*@dev"
 	},
 	"require-dev": {
 	},

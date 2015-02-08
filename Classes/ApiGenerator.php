@@ -225,6 +225,13 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 			);
 			$this->helper_systemCall(
 				vsprintf(
+					'git reset --hard origin/master',
+					array()
+				),
+				$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
+			);
+			$this->helper_systemCall(
+				vsprintf(
 					'git pull',
 					array()
 				),
@@ -263,6 +270,18 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 					$version['version'],
 				));
 		} else {
+
+			/*
+			$this->helper_systemCall(
+				vsprintf(
+					'git clean -f',
+					array(
+					)
+				),
+				$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
+			);
+			*/
+
 			$this->helper_systemCall(
 				vsprintf(
 					'git checkout --quiet %s',
@@ -273,10 +292,10 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 				$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName
 			);
 
-			if (in_array('composer', $buildOptions)) {
+			if (in_array('composer', $buildOptions) && is_file($this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName . '/composer.json')) {
 				$this->helper_systemCall(
 					vsprintf(
-						'composer --no-interaction install',
+						'composer --no-interaction update',
 						array()
 					),
 					$this->settings['locations']['base'] . $this->settings['locations']['source'] . $repositoryName,
@@ -377,7 +396,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 		$versions = array();
 
 		if (array_intersect($this->buildSubsets, array('all', 'stable'))) {
-			$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
+			$pattern = '/(\S*)\srefs\/tags\/(?:TYPO3_)?([0-9]*)[-.]([0-9]*)[-.]([0-9]*)$/';
 			foreach ($gitShowRef AS $tag) {
 				if (preg_match($pattern, $tag, $match)) {
 					$versions[] = array(
@@ -395,7 +414,7 @@ class ApiGenerator extends \ApiGenerator\Cli\Cli {
 		}
 
 		if (array_intersect($this->buildSubsets, array('all', 'latest'))) {
-			$pattern = '/(\S*)\srefs\/tags\/TYPO3_([0-9]*)-([0-9]*)-([0-9]*)$/';
+			$pattern = '/(\S*)\srefs\/tags\/(?:TYPO3_)?([0-9]*)[-.]([0-9]*)[-.]([0-9]*)$/';
 			$temp = array();
 			foreach ($gitShowRef AS $tag) {
 				if (preg_match($pattern, $tag, $match)) {
